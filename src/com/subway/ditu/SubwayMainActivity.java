@@ -19,7 +19,7 @@ import com.subway.ditu.utils.AssetsIOHelper;
 import com.subway.ditu.utils.image.ImageUtils;
 import com.subway.ditu.view.TouchImageView;
 
-public class MainActivity extends Activity {
+public class SubwayMainActivity extends Activity {
 
     private static final String TAG = "MainActivity";
 
