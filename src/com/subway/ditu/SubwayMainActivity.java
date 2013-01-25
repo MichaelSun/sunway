@@ -46,7 +46,7 @@ public class SubwayMainActivity extends Activity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        YoumiPush.startYoumiPush(this, "2d544ff83e17d0d4", "a871d930440ed6a7", false);
+        YoumiPush.startYoumiPush(this, "1508fd365094f7e4", "c0e60a92839566bf", false);
 
         lp = new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         mTouchImageView = new TouchImageView(this);
