@@ -93,7 +93,7 @@ public class SubwayMainActivity extends Activity {
 
         protected Boolean doInBackground(String... paths) {
             mPath = paths[0];
-            return AssetsIOHelper.saveAssetsFileToDest(getApplicationContext(), "beijing_subway.jpg", paths[0]);
+            return AssetsIOHelper.saveAssetsFileToDest(getApplicationContext(), "subway.jpg", paths[0]);
         }
 
         protected void onPostExecute(Boolean result) {
