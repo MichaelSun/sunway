@@ -7,6 +7,7 @@ import java.io.FileOutputStream;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.BitmapRegionDecoder;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
@@ -21,7 +22,8 @@ public class ImageUtils {
     private static final String TAG = "ImageUtils";
     private static final boolean DEBUG = false;
 
-    private static final int MAX_SIZE = 600 * 1024;
+    //内存大小
+    private static final int MAX_SIZE = 2 * 1024 * 1024;
 
     private static final double CIRCLE_RATE = 0.5;
     
@@ -327,7 +329,8 @@ public class ImageUtils {
             int height = opt.outHeight;
 
             BitmapFactory.Options newOpt = new BitmapFactory.Options();
-            long fileSize = bitmapFile.length();
+//            long fileSize = bitmapFile.length();
+            long fileSize = width * height * 4;
             if (fileSize <= MAX_SIZE) {
                 newOpt.inSampleSize = 1;
             } else if (fileSize <= MAX_SIZE * 4) {
@@ -386,6 +389,55 @@ public class ImageUtils {
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
+        }
+        return null;
+    }
+    
+    public static Bitmap loadBitmapRectDecode(File bitmapFile, Rect decodeRect) {
+        if (decodeRect == null || decodeRect.width() == 0 || decodeRect.height() == 0) {
+            return null;
+        }
+        
+        Bitmap bmp = null;
+        FileInputStream fis = null;
+
+        try {
+//            BitmapFactory.Options opt = new BitmapFactory.Options();
+//            opt.inPurgeable = true;
+//            opt.inJustDecodeBounds = true;
+//
+//            BitmapFactory.decodeFile(bitmapFile.getAbsolutePath(), opt);
+//            int width = opt.outWidth;
+//            int height = opt.outHeight;
+
+            BitmapFactory.Options newOpt = new BitmapFactory.Options();
+            long originMemorySize = ((long) decodeRect.width()) * decodeRect.height() * 4;
+            if (originMemorySize <= MAX_SIZE) {
+                newOpt.inSampleSize = 1;
+            } else if (originMemorySize <= MAX_SIZE * 4) {
+                newOpt.inSampleSize = 2;
+            } else {
+                long times = originMemorySize / MAX_SIZE;
+                newOpt.inSampleSize = (int) (Math.log(times) / Math.log(2.0)) + 1;
+            }
+
+            newOpt.inTempStorage = new byte[16 * 1024];
+            newOpt.inScaled = true;
+            newOpt.inPurgeable = true;
+            newOpt.inInputShareable = true;
+
+            BitmapRegionDecoder btDecoder = BitmapRegionDecoder.newInstance(bitmapFile.getAbsolutePath(), true);
+            if (btDecoder != null) {
+                bmp = btDecoder.decodeRegion(decodeRect, newOpt);
+            }
+            btDecoder.recycle();
+
+            return bmp;
+        } catch (Exception e) {
+            e.printStackTrace();
+        } catch (OutOfMemoryError e) {
+            e.printStackTrace();
+        } finally {
         }
         return null;
     }

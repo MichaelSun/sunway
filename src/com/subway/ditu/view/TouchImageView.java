@@ -3,8 +3,11 @@
  */
 package com.subway.ditu.view;
 
+import java.io.File;
+
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.PointF;
@@ -14,9 +17,13 @@ import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.text.TextUtils;
 import android.util.FloatMath;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+
+import com.subway.ditu.utils.image.ImageUtils;
 
 /**
  * 支持缩放，拖动，还原的ImageView
@@ -25,6 +32,8 @@ import android.view.View;
  */
 public class TouchImageView extends View {
 
+    private static final boolean DEBUG = false;
+    
     public static final int EXIT = 0;
 
     private RectF mIdleRectF;
@@ -34,7 +43,7 @@ public class TouchImageView extends View {
     private Bitmap mBitmap;
 
     private static final float MIN_SCALER = 1.0f; // 最小缩放比例
-    private static final float MAX_SCALER = 8.0f; // 最大缩放比例
+    private static final float MAX_SCALER = 16.0f; // 最大缩放比例
 
     // touch状态
     private static final int MODE_NONE = 0; // 初始状态
@@ -52,6 +61,12 @@ public class TouchImageView extends View {
     private int mViewHeight;
     private int mBitmapWidth;
     private int mBitmapHeight;
+
+    private String mFullPath;
+
+    private RegionBitmap mRegionBitmap;
+    
+    private RectF mWindowRectF;
 
     private Paint paint;
 
@@ -119,6 +134,10 @@ public class TouchImageView extends View {
         return false;
     }
 
+    public void setImageFullPath(String fullPath) {
+        mFullPath = fullPath;
+    }
+
     public void setImageBitmap(Bitmap bitmap) {
         if (initBitmap(bitmap)) {
             mFirstOnDraw = true;
@@ -163,7 +182,6 @@ public class TouchImageView extends View {
             mPreDist = getSpace(event);
             // 如果连续两点距离大于10，则判定为多点模式
             if (getSpace(event) > 10f) {
-
                 mLastRectF.set(mDesRectF);
                 mMidPointF = getMidPointF(event);
                 mTouchMode = MODE_ZOOM;
@@ -181,11 +199,13 @@ public class TouchImageView extends View {
             mTouchMode = MODE_NONE;
             break;
         case MotionEvent.ACTION_POINTER_UP:
-            if (mTouchMode == MODE_ZOOM)
+            if (mTouchMode == MODE_ZOOM) {
                 checkZoomSize();
+            }
             mTouchMode = MODE_NONE;
             break;
         case MotionEvent.ACTION_MOVE:
+            mRegionBitmap = null;
             if (mTouchMode == MODE_DRAG || mTouchMode == MODE_PRESS) {
                 float dragX = event.getX() - mPrevPointF.x;
                 float dragY = event.getY() - mPrevPointF.y;
@@ -249,13 +269,34 @@ public class TouchImageView extends View {
         paint.setXfermode(new PorterDuffXfermode(Mode.CLEAR));
         canvas.drawPaint(paint);
         paint.setXfermode(new PorterDuffXfermode(Mode.SRC));
-        if (mBitmap != null && !mBitmap.isRecycled()) {
+        if (mRegionBitmap == null && mBitmap != null && !mBitmap.isRecycled()) {
             Rect src = new Rect(0, 0, mBitmapWidth, mBitmapHeight);
             canvas.drawBitmap(mBitmap, src, mDesRectF, paint);
+        } else if (mRegionBitmap != null && mRegionBitmap.bitmapDrawRect != null && mRegionBitmap.btDraw != null
+                && !mRegionBitmap.btDraw.isRecycled()) {
+            Rect src = new Rect(0, 0, mRegionBitmap.btDraw.getWidth(), mRegionBitmap.btDraw.getHeight());
+            canvas.drawBitmap(mRegionBitmap.btDraw, src, mRegionBitmap.bitmapDrawRect, paint);
+            if (DEBUG) {
+                Log.d(">>>>>>>", " onDraw : src = " + src + " targetDraw = " + mRegionBitmap.bitmapDrawRect);
+            }
         }
         canvas.restore();
     }
 
+    private RectF getWindowRectF() {
+        if (mWindowRectF == null) {
+            mWindowRectF = new RectF();
+        }
+        if (mWindowRectF.width() == 0 || mWindowRectF.height() == 0) {
+            mWindowRectF.left = 0;
+            mWindowRectF.top = 0;
+            mWindowRectF.right = mWindowRectF.left + getWidth();
+            mWindowRectF.bottom = mWindowRectF.top + getHeight();
+        }
+        
+        return mWindowRectF;
+    }
+    
     /**
      * 限制最大最小缩放比例，自动居中 缩小后尺寸 < 原始尺寸 还原
      */
@@ -279,9 +320,40 @@ public class TouchImageView extends View {
                 mDesRectF.set(mLastRectF.left + deltaLeft, mLastRectF.top + deltaTop, mLastRectF.right + deltaRight,
                         mLastRectF.bottom + deltaBottom);
             }
+
+            if (mRegionBitmap != null && mRegionBitmap.btDraw != null && !mRegionBitmap.btDraw.isRecycled()) {
+                mRegionBitmap.btDraw.recycle();
+            }
+            mRegionBitmap = null;
+            RectF windowsRectF = getWindowRectF();
+
+            if (DEBUG) {
+                Log.d("}}}}", "mDesRectF " + mDesRectF);
+            }
+            if (RectF.intersects(mDesRectF, windowsRectF)) {
+                mRegionBitmap = ImageRegionDecodeUtils.getRegionBitmap(this.mFullPath, mDesRectF,
+                        intersect(mDesRectF, windowsRectF));
+                if (DEBUG) {
+                    Log.d(">>>> ", " mRegionBitmap = " + mRegionBitmap);
+                }
+            }
         }
 
         invalidate();
+    }
+
+    private RectF intersect(RectF one, RectF two) {
+        RectF ret = new RectF();
+        if (RectF.intersects(one, two)) {
+            ret.left = Math.max(one.left, two.left);
+            ret.top = Math.max(one.top, two.top);
+            ret.right = Math.min(one.right, two.right);
+            ret.bottom = Math.min(one.bottom, two.bottom);
+
+            return ret;
+        }
+
+        return ret;
     }
 
     /*
@@ -306,6 +378,25 @@ public class TouchImageView extends View {
         mDesRectF.set(mLastRectF.left + deltaX, mLastRectF.top + deltaY, mLastRectF.right + deltaX, mLastRectF.bottom
                 + deltaY);
 
+        if (mDesRectF.width() > getWindowRectF().width() || mDesRectF.height() > getWindowRectF().height()) {
+            if (DEBUG) {
+                Log.d("}}}", "[[checkPosition]] mDesRectF = " + mDesRectF);
+            }
+            if (mRegionBitmap != null && mRegionBitmap.btDraw != null && !mRegionBitmap.btDraw.isRecycled()) {
+                mRegionBitmap.btDraw.recycle();
+            }
+            mRegionBitmap = null;
+            RectF windowsRectF = getWindowRectF();
+
+            if (RectF.intersects(mDesRectF, windowsRectF)) {
+                mRegionBitmap = ImageRegionDecodeUtils.getRegionBitmap(this.mFullPath, mDesRectF,
+                        intersect(mDesRectF, windowsRectF));
+                if (DEBUG) {
+                    Log.d(">>>> ", " mRegionBitmap = " + mRegionBitmap);
+                }
+            }
+        }
+        
         invalidate();
     }
 
@@ -409,6 +500,61 @@ public class TouchImageView extends View {
         float y = event.getY(0) + event.getY(1);
         point.set(x / 2, y / 2);
         return point;
+    }
+
+    private static final class RegionBitmap {
+        RectF bitmapDrawRect;
+        Bitmap btDraw;
+
+        @Override
+        public String toString() {
+            return "RegionBitmap [bitmapDrawRect=" + bitmapDrawRect + ", btDraw=" + btDraw + "]";
+        }
+    }
+
+    private static final class ImageRegionDecodeUtils {
+        static RegionBitmap getRegionBitmap(String btFullPath, RectF btCurRect, RectF drawRect) {
+            if (!TextUtils.isEmpty(btFullPath) && btCurRect != null && drawRect != null && btCurRect.width() > 0
+                    && btCurRect.height() > 0 && drawRect.width() > 0 && drawRect.height() > 0) {
+                if (btCurRect.width() > drawRect.width() || btCurRect.height() > drawRect.height()
+                        || btCurRect.contains(drawRect)) {
+                    try {
+                        BitmapFactory.Options opts = ImageUtils.getBitmapHeaderInfo(btFullPath);
+                        if (opts != null) {
+                            int btWidth = opts.outWidth;
+                            int btHeight = opts.outHeight;
+
+                            float scaleX = (float) ((btWidth * 1.0) / btCurRect.width());
+                            float scaleY = (float) ((btHeight * 1.0) / btCurRect.height());
+
+                            Rect decodeRect = new Rect();
+                            int decodeWidth = (int) (drawRect.width() * scaleX);
+                            int decodeHeight = (int) (drawRect.height() * scaleY);
+                            decodeRect.left = (int) (Math.abs((btCurRect.left - drawRect.left)) * scaleX);
+                            decodeRect.top = (int) (Math.abs(btCurRect.top - drawRect.top) * scaleY);
+                            decodeRect.right = decodeRect.left + decodeWidth;
+                            decodeRect.bottom = decodeRect.top + decodeHeight;
+
+                            RegionBitmap ret = new RegionBitmap();
+                            ret.bitmapDrawRect = drawRect;
+                            ret.btDraw = ImageUtils.loadBitmapRectDecode(new File(btFullPath), decodeRect);
+
+                            Log.d("::::::::", "decodeRect = " + decodeRect.toString() + " btCurRect = " + btCurRect
+                                    + " drawRect = " + drawRect + " bt size = (" + btWidth + ", " + btHeight + ")"
+                                    + " scaleX = " + scaleX + " scaleY = " + scaleY + " ret.btDraw size = ("
+                                    + (ret.btDraw != null ? ret.btDraw.getWidth() : 0) + ", "
+                                    + (ret.btDraw != null ? ret.btDraw.getHeight() : 0) + ")");
+
+                            return ret;
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+            return null;
+        }
     }
 
 }
