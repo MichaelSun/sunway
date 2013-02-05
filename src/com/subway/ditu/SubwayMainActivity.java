@@ -29,7 +29,9 @@ public class SubwayMainActivity extends Activity {
     private ProgressDialog mProgressDialog;
 
     private final static String MAP_FILE_NAME = "map1.jpg";
-
+    
+    private String mMapFullPath;
+    
     private static final int LOAD_IMAGE = 1000;
     private Handler mHandler = new Handler() {
         public void handleMessage(Message msg) {
@@ -61,12 +63,12 @@ public class SubwayMainActivity extends Activity {
     }
 
     private void checkLoadData() {
-        String saveFileFullPath = this.getFilesDir().getAbsolutePath() + File.separator + MAP_FILE_NAME;
-        if (!TextUtils.isEmpty(saveFileFullPath)) {
-            if (ImageUtils.isBitmapData(saveFileFullPath)) {
-                new LoadFilesTask().execute(saveFileFullPath);
+        mMapFullPath = this.getFilesDir().getAbsolutePath() + File.separator + MAP_FILE_NAME;
+        if (!TextUtils.isEmpty(mMapFullPath)) {
+            if (ImageUtils.isBitmapData(mMapFullPath)) {
+                new LoadFilesTask().execute(mMapFullPath);
             } else {
-                new ExtraFilesTask().execute(saveFileFullPath);
+                new ExtraFilesTask().execute(mMapFullPath);
             }
         }
     }
@@ -78,6 +80,7 @@ public class SubwayMainActivity extends Activity {
 
         protected void onPostExecute(Bitmap result) {
             if (result != null) {
+                mTouchImageView.setImageFullPath(mMapFullPath);
                 mTouchImageView.setImageBitmap(result);
             } else {
                 Toast.makeText(getApplicationContext(), "加载失败", Toast.LENGTH_SHORT).show();
