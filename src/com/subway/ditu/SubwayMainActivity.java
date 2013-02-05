@@ -48,7 +48,7 @@ public class SubwayMainActivity extends Activity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        YoumiPush.startYoumiPush(this, "2d544ff83e17d0d4", "a871d930440ed6a7", false);
+        YoumiPush.startYoumiPush(this, "704e52750fbdf951", "a6dcf86615b8d9a4", false);
 
         lp = new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         mTouchImageView = new TouchImageView(this);
@@ -96,7 +96,7 @@ public class SubwayMainActivity extends Activity {
 
         protected Boolean doInBackground(String... paths) {
             mPath = paths[0];
-            return AssetsIOHelper.saveAssetsFileToDest(getApplicationContext(), "beijing_subway.jpg", paths[0]);
+            return AssetsIOHelper.saveAssetsFileToDest(getApplicationContext(), "subway.jpg", paths[0]);
         }
 
         protected void onPostExecute(Boolean result) {
