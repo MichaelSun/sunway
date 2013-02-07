@@ -33,7 +33,9 @@ import com.subway.ditu.utils.image.ImageUtils;
 public class TouchImageView extends View {
 
     private static final boolean DEBUG = false;
-    
+
+    private static final boolean SUPPORT_REGION_DECODE = true;
+
     public static final int EXIT = 0;
 
     private RectF mIdleRectF;
@@ -65,7 +67,7 @@ public class TouchImageView extends View {
     private String mFullPath;
 
     private RegionBitmap mRegionBitmap;
-    
+
     private RectF mWindowRectF;
 
     private Paint paint;
@@ -293,10 +295,10 @@ public class TouchImageView extends View {
             mWindowRectF.right = mWindowRectF.left + getWidth();
             mWindowRectF.bottom = mWindowRectF.top + getHeight();
         }
-        
+
         return mWindowRectF;
     }
-    
+
     /**
      * 限制最大最小缩放比例，自动居中 缩小后尺寸 < 原始尺寸 还原
      */
@@ -321,20 +323,22 @@ public class TouchImageView extends View {
                         mLastRectF.bottom + deltaBottom);
             }
 
-            if (mRegionBitmap != null && mRegionBitmap.btDraw != null && !mRegionBitmap.btDraw.isRecycled()) {
-                mRegionBitmap.btDraw.recycle();
-            }
-            mRegionBitmap = null;
-            RectF windowsRectF = getWindowRectF();
+            if (SUPPORT_REGION_DECODE) {
+                if (mRegionBitmap != null && mRegionBitmap.btDraw != null && !mRegionBitmap.btDraw.isRecycled()) {
+                    mRegionBitmap.btDraw.recycle();
+                }
+                mRegionBitmap = null;
+                RectF windowsRectF = getWindowRectF();
 
-            if (DEBUG) {
-                Log.d("}}}}", "mDesRectF " + mDesRectF);
-            }
-            if (RectF.intersects(mDesRectF, windowsRectF)) {
-                mRegionBitmap = ImageRegionDecodeUtils.getRegionBitmap(this.mFullPath, mDesRectF,
-                        intersect(mDesRectF, windowsRectF));
                 if (DEBUG) {
-                    Log.d(">>>> ", " mRegionBitmap = " + mRegionBitmap);
+                    Log.d("}}}}", "mDesRectF " + mDesRectF);
+                }
+                if (!TextUtils.isEmpty(mFullPath) && RectF.intersects(mDesRectF, windowsRectF)) {
+                    mRegionBitmap = ImageRegionDecodeUtils.getRegionBitmap(this.mFullPath, mDesRectF,
+                            intersect(mDesRectF, windowsRectF));
+                    if (DEBUG) {
+                        Log.d(">>>> ", " mRegionBitmap = " + mRegionBitmap);
+                    }
                 }
             }
         }
@@ -388,7 +392,7 @@ public class TouchImageView extends View {
             mRegionBitmap = null;
             RectF windowsRectF = getWindowRectF();
 
-            if (RectF.intersects(mDesRectF, windowsRectF)) {
+            if (!TextUtils.isEmpty(mFullPath) && RectF.intersects(mDesRectF, windowsRectF)) {
                 mRegionBitmap = ImageRegionDecodeUtils.getRegionBitmap(this.mFullPath, mDesRectF,
                         intersect(mDesRectF, windowsRectF));
                 if (DEBUG) {
@@ -396,7 +400,7 @@ public class TouchImageView extends View {
                 }
             }
         }
-        
+
         invalidate();
     }
 
